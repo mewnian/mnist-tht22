@@ -7,3 +7,6 @@ train_png.zip
 test/
 train/
 train_png/
+*.json
+*.exe
+.gitignore
