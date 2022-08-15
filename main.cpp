@@ -112,21 +112,19 @@ int kNearestNeighbors(int queryID, int k = 30, long double ratio_sample = 1.0)
 
 int main(int argc, char** argv)
 {
-    // if (argc < 3)
-    // {
-    //     cout << "Invalid count of arguments - program cannot run";
-    //     return 0;
-    // }
+    if (argc < 3)
+    {
+        cout << "Invalid count of arguments - program cannot run";
+        return 0;
+    }
     ios_base::sync_with_stdio(0); cin.tie(0);
     loadData();
-    const int TRIAL_TEST = 10000;
-    // const int TRIAL_TEST = atoi(argv[1]);
+    const int TRIAL_TEST = atoi(argv[1]);
     assert(TRIAL_TEST <= N_TEST);
-    // vector< tuple<int, int, int, ld> > result;
-    // for (int _ = 2; _ < argc; ++_)
+    vector< tuple<int, int, int, ld> > result;
+    for (int _ = 2; _ < argc; ++_)
     {
-        // int k = atoi(argv[_]);
-        int k = 5;
+        int k = atoi(argv[_]);
         int correct = 0;
         for (int test_id = 0; test_id < TRIAL_TEST; ++test_id)
         {
