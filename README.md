@@ -5,5 +5,4 @@ The code above is used for the ["Number Guessing"](http://tinhoctre.vn/problem/d
 ## Algorithms implemented
 
 -   [x] K-Nearest Neighbors
--   [ ] Naive Bayes
--   [ ] Convolutional Neural Network
+-   [x] Naive Bayes
