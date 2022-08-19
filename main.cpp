@@ -156,7 +156,8 @@ int main(int argc, char** argv)
     cout << "RESULTS" << endl;
     for (auto& r : result)
     {
-        auto [t1, t2, t3, t4] = r;
+        int t1, t2, t3; ld t4;
+        tie(t1, t2, t3, t4) = r;
         cout << "k = " << t1 << " | Correct = " << t2 << " / " << t3 << " | Accuracy = " << t4 << "%" << endl;
     }
     cout << "\033[0m";
