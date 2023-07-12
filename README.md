@@ -6,4 +6,3 @@ The code above is used for the ["Number Guessing"](http://tinhoctre.vn/problem/d
 
 -   [x] K-Nearest Neighbors
 -   [x] Naive Bayes
--   [x] **Neural Network**
