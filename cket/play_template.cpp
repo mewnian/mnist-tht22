@@ -1,11 +1,12 @@
 #include <bits/stdc++.h>
+#define fi first
+#define se second
 
 using namespace std;
 typedef long double ld;
+typedef pair<int, int> pi;
 
-// const int SEEDS = 20220820;
 mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
-// mt19937_64 rng(SEEDS);
 
 class Matrix 
 {
@@ -141,15 +142,14 @@ Matrix final_layer(Matrix& val, Matrix& w, Matrix& b)
     return softmax(z);
 }
 
-int layers = 4, moves;
+int layers = 4, moves = 3;
 vector< pair<Matrix, Matrix> > param_layer;
 
 
-void predict(Matrix& img)
+pair<int,ld> predict(Matrix& img)
 {
     for (int i = 0; i < moves - 1; ++i)
     {
-        // cerr << param_layer[i].first.m << " " << param_layer[i].first.n << endl;
         img = forward_pass(img, param_layer[i].first, param_layer[i].second);
         // dropout(img, 0.5l);
     }
@@ -157,14 +157,122 @@ void predict(Matrix& img)
     int output = 0;
     for (int d = 1; d < 10; ++d) 
         if (img.vals[0][d] > img.vals[0][output]) output = d;
-    cout << output;
+    return make_pair(output, img.vals[0][output]);
 }
 
-Matrix actual_img(1, 1600);
+pair<ld,ld> predict_good(Matrix& img1, Matrix& img2)
+{
+    int answer = predict(img1).fi;
+    for (int i = 0; i < moves - 1; ++i)
+    {
+        img2 = forward_pass(img2, param_layer[i].first, param_layer[i].second);
+        // dropout(img, 0.5l);
+    }
+    img2 = final_layer(img2, param_layer[moves - 1].first, param_layer[moves - 1].second);
+    int output = 0;
+    for (int d = 1; d < 10; ++d) 
+        if (img2.vals[0][d] > img2.vals[0][output]) output = d;
+    return make_pair(img2.vals[0][answer] / img2.vals[0][output], img2.vals[0][output]);
+}
+
+int pixels[103][43][43];
+int pref_sum[103][43][43];
+
+int get_pixels(int id_img, int x, int y)
+{
+    int rx = min(40, x + 10), ry = min(40, y + 10);
+    return pref_sum[id_img][rx][ry] - pref_sum[id_img][rx][y] - pref_sum[id_img][x][ry] + pref_sum[id_img][x][y];
+}
+
+ld prob_chosen(int x)
+{
+    return exp((ld)x / (ld)10.0l);
+}
+
+void hide_task()
+{
+    vector< tuple<int, int, int, int> > rs;
+    int q; cin >> q;
+    for (int _ = 0; _ < q; ++_)
+    {
+        for (int i = 0; i < 40; ++i)
+        {
+            for (int j = 0; j < 40; ++j)
+            {
+                int u; cin >> u;
+                pixels[_][i][j] = u;
+                pref_sum[_][i + 1][j + 1] = pref_sum[_][i + 1][j] + pref_sum[_][i][j + 1] - pref_sum[_][i][j] + u;
+            }
+        }
+    }
+    for (int _ = 0; _ < q; ++_)
+    {
+        for (int x = 0; x < 40; ++x)
+            for (int y = 0; y < 40; ++y)
+            {
+                if (get_pixels(_,x,y) < 10) continue;
+                rs.push_back({get_pixels(_,x,y), _, x, y});
+            }
+    }
+    sort(rs.begin(), rs.end());
+    vector<ld> range;
+    ld sum = 0;
+    for (int i = 0; i < rs.size(); ++i) sum += prob_chosen(get<0>(rs[i]));
+    ld cur = 0.0l;
+    for (int i = 0; i < rs.size(); ++i)
+    {
+        range.push_back(cur);
+        cur += prob_chosen(get<0>(rs[i])) / sum;
+    }
+    pair<ld, ld> ratio = {1, 1};
+    tuple<int, int, int> chose_tp = {-1, -1, -1};
+    for (int ITER = 0; ITER < 200; ++ITER)
+    {
+        ld rnd = uniform_real_distribution<ld>(0,1)(rng);
+        int cid = lower_bound(range.begin(), range.end(), rnd) - range.begin();
+        Matrix _img1(1, 1600), _img2(1, 1600);
+        for (int x = 0; x < 40; ++x)
+            for (int y = 0; y < 40; ++y)
+                _img1.vals[0][x * 40 + y] = _img2.vals[0][x * 40 + y] = pixels[get<1>(rs[cid])][x][y];
+        for (int dx = 0; dx < 10; ++dx)
+            for (int dy = 0; dy < 10; ++dy)
+            {
+                int tx = get<2>(rs[cid]) + dx, ty = get<3>(rs[cid]) + dy;
+                if (tx > 40 || ty > 40) continue;
+                _img2.vals[0][tx * 40 + ty] = 0.25l;
+            }
+        pair<ld, ld> res = predict_good(_img1, _img2);
+        if (res < ratio)
+        {
+            ratio = res;
+            chose_tp = {get<1>(rs[cid]), get<2>(rs[cid]), get<3>(rs[cid])};
+        }
+    }
+    cout << get<0>(chose_tp) << " " << get<1>(chose_tp) << " " << get<2>(chose_tp) << endl;
+}
+
+void predict_task(ld confidence = 0.9)
+{
+    Matrix _img(1, 1600);
+    for (int i = 0; i < 40; ++i)
+    {
+        for (int j = 0; j < 40; ++j)
+        {
+            int u; cin >> u;
+            if (u == 0) _img.vals[0][i * 40 + j] = 0;
+            else if (u == 1) _img.vals[0][i * 40 + j] = 1;
+            else _img.vals[0][i * 40 + j] = 0.25l;
+        }
+    }
+    pair<int, ld> res = predict(_img);
+    cout << (res.se > confidence ? res.fi : -1);
+}
+
+Matrix img(1, 1600);
 int main()
 {
     ios_base::sync_with_stdio(0); cin.tie(0);
-    // assign
+    
     for (int i = 0; i < w1.m; ++i)
         for (int j = 0; j < w1.n; ++j)
             w1.vals[i][j] = vw1[i][j];
@@ -186,14 +294,9 @@ int main()
     // get_params
     param_layer.push_back(make_pair(w1, b1));
     param_layer.push_back(make_pair(w2, b2));
-    param_layer.push_back(make_pair(w3, b3));
-    // query
-    // cerr << "ok start querying" << endl;
+    param_layer.push_back(make_pair(w3, b3));    
 
-    moves = layers - 1;
-    
-    for (int i = 0; i < 40; ++i)
-        for (int j = 0; j < 40; ++j) 
-            cin >> actual_img.vals[0][i * 40 + j];
-    // cerr << "output ok" << endl;
+    int type; cin >> type;
+    if (type == 1) hide_task();
+    else predict_task();
 }

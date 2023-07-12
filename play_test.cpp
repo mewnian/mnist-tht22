@@ -3,9 +3,9 @@
 using namespace std;
 typedef long double ld;
 
-// const int SEEDS = 20220820;
-mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
-// mt19937_64 rng(SEEDS);
+const int SEEDS = 20220820;
+// mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
+mt19937_64 rng(SEEDS);
 
 class Matrix 
 {
@@ -22,14 +22,6 @@ class Matrix
                     for (int j = 0; j < n; ++j)
                         vals[i][j] = uniform_real_distribution<ld>(0.0l, 1.0l)(rng);
             }
-        }
-
-        Matrix(vector< vector<ld> > _vals)
-        {
-            m = vals.size(); n = vals[0].size();
-            for (int i = 0; i < m; ++i)
-                for (int j = 0; j < n; ++j)
-                    vals[i][j] = _vals[i][j];
         }
 
         Matrix operator*(const ld& scalar)
@@ -142,58 +134,77 @@ Matrix final_layer(Matrix& val, Matrix& w, Matrix& b)
 }
 
 int layers = 4, moves;
+int dim[4] = {1600, 128, 64, 10};
 vector< pair<Matrix, Matrix> > param_layer;
 
-
-void predict(Matrix& img)
-{
-    for (int i = 0; i < moves - 1; ++i)
-    {
-        // cerr << param_layer[i].first.m << " " << param_layer[i].first.n << endl;
-        img = forward_pass(img, param_layer[i].first, param_layer[i].second);
-        // dropout(img, 0.5l);
-    }
-    img = final_layer(img, param_layer[moves - 1].first, param_layer[moves - 1].second);
-    int output = 0;
-    for (int d = 1; d < 10; ++d) 
-        if (img.vals[0][d] > img.vals[0][output]) output = d;
-    cout << output;
-}
-
 Matrix actual_img(1, 1600);
-int main()
-{
-    ios_base::sync_with_stdio(0); cin.tie(0);
-    // assign
-    for (int i = 0; i < w1.m; ++i)
-        for (int j = 0; j < w1.n; ++j)
-            w1.vals[i][j] = vw1[i][j];
-    for (int i = 0; i < b1.m; ++i)
-        for (int j = 0; j < b1.n; ++j)
-            b1.vals[i][j] = vb1[i][j];
-    for (int i = 0; i < w2.m; ++i)
-        for (int j = 0; j < w2.n; ++j)
-            w2.vals[i][j] = vw2[i][j];  
-    for (int i = 0; i < b2.m; ++i)
-        for (int j = 0; j < b2.n; ++j)
-            b2.vals[i][j] = vb2[i][j];
-    for (int i = 0; i < w3.m; ++i)
-        for (int j = 0; j < w3.n; ++j)
-            w3.vals[i][j] = vw3[i][j];
-    for (int i = 0; i < b3.m; ++i)
-        for (int j = 0; j < b3.n; ++j)
-            b3.vals[i][j] = vb3[i][j];
-    // get_params
-    param_layer.push_back(make_pair(w1, b1));
-    param_layer.push_back(make_pair(w2, b2));
-    param_layer.push_back(make_pair(w3, b3));
-    // query
-    // cerr << "ok start querying" << endl;
 
+int main(int argc, char** argv)
+{
+    if (argc != 4) return 0;
+    ios_base::sync_with_stdio(0); cin.tie(0);
+    // get_params
+    freopen("jupyter/params.txt", "r", stdin);
+    for (int l = 1; l < layers; ++l)
+    {
+        Matrix w(dim[l - 1], dim[l]), b(1, dim[l]);
+        for (int i = 0; i < dim[l - 1]; ++i)
+            for (int j = 0; j < dim[l]; ++j)
+                cin >> w.vals[i][j];
+        for (int j = 0; j < dim[l]; ++j) cin >> b.vals[0][j];
+        param_layer.push_back(make_pair(w, b));
+    }
+    fclose(stdin);
+    // query
+    int id = atoi(argv[1]), x = atoi(argv[2]), y = atoi(argv[3]);
+    // vector<int> wrong_ans;
+    ostringstream ss; ss << setw(5) << setfill('0') << id;
+    ifstream f_data("train/" + ss.str() + ".inp"); ifstream f_label("train/" + ss.str() + ".ans");
     moves = layers - 1;
-    
     for (int i = 0; i < 40; ++i)
-        for (int j = 0; j < 40; ++j) 
-            cin >> actual_img.vals[0][i * 40 + j];
-    // cerr << "output ok" << endl;
+    {
+        string s; f_data >> s;
+        for (int j = 0; j < 40; ++j) actual_img.vals[0][i * 40 + j] = s[j] - '0';
+    }
+    int answer; f_label >> answer;
+    cout << "Label = " << answer << endl;
+    for (int turn = 0; turn <= 5; ++turn)
+    {
+        Matrix img(1, 1600);
+        for (int i = 0; i < 40; ++i)
+        {
+            for (int j = 0; j < 40; ++j) img.vals[0][i * 40 + j] = actual_img.vals[0][i * 40 + j];
+        }
+        for (int dx = 0; dx < 10; ++dx)
+            for (int dy = 0; dy < 10; ++dy)
+            {
+                int tx = x + dx, ty = y + dy;
+                int mn = min({dx, 9 - dx, dy, 9 - dy});
+                if (mn < turn) img.vals[0][tx * 40 + ty] = actual_img.vals[0][tx * 40 + ty];
+                else img.vals[0][tx * 40 + ty] = 0.25l;
+            }
+        cout << "\033[0m" << "TURN " << turn << endl;
+        cout << "\033[32m";
+        for (int x = 0; x < 40; ++x)
+        {
+            for (int y = 0; y < 40; ++y)
+                cout << (img.vals[0][x * 40 + y] == 0.25l ? 2 : int(img.vals[0][x *40 + y]));
+            cout << endl;
+        }
+        cout << endl;
+        for (int i = 0; i < moves - 1; ++i)
+        {
+            img = forward_pass(img, param_layer[i].first, param_layer[i].second);
+            // dropout(img, 0.5l);
+        }
+        img = final_layer(img, param_layer[moves - 1].first, param_layer[moves - 1].second);
+        int output = 0;
+        for (int d = 1; d < 10; ++d) 
+            if (img.vals[0][d] > img.vals[0][output]) output = d;
+        cout << "\033[36m";
+        for (int d = 0; d < 10; ++d) cout << fixed << setprecision(9) << d << " | " << img.vals[0][d] * 100.0l << endl;
+        // cout << "\033[31m" << "Hide " << x << "-" << y << " | Pred = " << output << ", Answer = " << answer << " | " << "FAILURE" << endl;
+        cout << "\033[0m" << endl;
+    }
+    f_data.close(); f_label.close();
 }
