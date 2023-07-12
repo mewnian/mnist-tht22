@@ -1,0 +1,7 @@
+*.exe
+/test
+/train
+/train_png
+train_png.zip
+digit-test.zip
+digit-train.zip
